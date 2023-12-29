@@ -17,7 +17,9 @@
         <v-btn @click="removeDuplicateAndDownload" color="info" class="mr-4"
           >Remove Duplicates and Download</v-btn
         >
-        <v-btn color="info" disabled>Save Data</v-btn>
+        <v-btn @click="saveData" color="info" :disabled="!duplicatesRemoved"
+          >Save Data</v-btn
+        >
       </v-col>
     </v-row>
 
@@ -103,6 +105,7 @@ export default {
       loading: false,
       search: "",
       excelFile: null,
+      duplicatesRemoved: false,
 
       serverItems: [
         {
@@ -179,9 +182,8 @@ export default {
     },
   },
   methods: {
-    clearFile(){
-      this.selectedFile=null;
-
+    clearFile() {
+      this.selectedFile = null;
     },
     handleFileChange(event) {
       this.file = event.target.files[0];
@@ -214,6 +216,8 @@ export default {
 
         link.click();
         this.selectedFile = null;
+        console.log("Ssuccessfully removed dupliates");
+        this.duplicatesRemoved = true;
       } catch (error) {
         console.error("Error", error.message);
         alert("Error");
@@ -231,6 +235,49 @@ export default {
       } else {
         console.error("File not available");
         // Handle the error or provide feedback to the user
+      }
+    },
+
+    async saveData() {
+      if (!this.file) {
+        alert("Please select a file");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", this.file);
+
+      try {
+        const response = await axios.post("/api/save-data", formData);
+
+        if (response.data.error) {
+          if (response.data.error === "No data to save.") {
+            alert("No data to save. Please run removeDuplicates first.");
+            this.duplicatesRemoved = false; 
+          } else {
+            alert("Error during import: " + response.data.error.error);
+            this.duplicatesRemoved = false; 
+          }
+        } else {
+          console.log(response.data.message);
+          alert("File uploaded and processed successfully");
+          this.duplicatesRemoved = false; 
+          this.clearFile();
+        }
+      } catch (error) {
+        console.error("Detailed error information:", error);
+        this.duplicatesRemoved = false; 
+        if (error.response) {
+          console.error("Response status:", error.response.status);
+          console.error("Response data:", error.response.data);
+          alert("Server error: " + error.response.data.error);
+        } else if (error.request) {
+          console.error("No response received");
+          alert("No response received from the server.");
+        } else {
+          console.error("Error setting up the request:", error.message);
+          alert("Error setting up the request: " + error.message);
+        }
       }
     },
 
